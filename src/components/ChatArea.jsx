@@ -50,14 +50,14 @@ const EmptyStateDescription = styled.p`
 const MessageItem = styled.div`
   margin-bottom: 16px;
   max-width: 80%;
-  align-self: ${props => props.$isUser ? 'flex-end' : 'flex-start'};
+  align-self: ${props => props.$isUser.toString() == "true" ? 'flex-end' : 'flex-start'};
 `;
 
 const MessageContent = styled.div`
   padding: 12px 16px;
   border-radius: 8px;
   // 消息气泡使用主题色
-  background-color: ${props => props.$isUser ?
+  background-color: ${props => props.$isUser.toString() == "true" ?
     props.theme.messageUserBg :
     props.theme.messageBotBg};
   color: ${props => props.theme.text};
@@ -148,8 +148,8 @@ const ChatArea = ({ activeChat, messages = [] }) => {
 
       <MessagesContainer>
         {messages.map((msg, index) => (
-          <MessageItem key={index} isUser={msg.$isUser}>
-            <MessageContent isUser={msg.$isUser}>
+          <MessageItem key={index} $isUser={msg.isUser.toString()}>
+            <MessageContent $isUser={msg.isUser.toString()}>
               {msg.content}
             </MessageContent>
           </MessageItem>
