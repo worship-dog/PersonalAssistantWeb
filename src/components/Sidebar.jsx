@@ -1,38 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import styled from 'styled-components';
-import { MenuFoldOutlined, MenuUnfoldOutlined, PlusOutlined } from '@ant-design/icons';
+import { MenuFoldOutlined, MenuUnfoldOutlined, PlusOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons';
+import { ThemeContext } from '../App';
 
 const SidebarContainer = styled.div`
   height: 100%;
-  background-color: #f7f7f8;
+  background-color: ${props => props.theme.sidebarBg};
   transition: width 0.3s;
   width: ${props => props.collapsed ? '60px' : '260px'};
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #e6e6e6;
+  border-right: 1px solid ${props => props.theme.border};
 `;
 
 const SidebarHeader = styled.div`
   display: flex;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid #e6e6e6;
+  border-bottom: 1px solid ${props => props.theme.border};
 `;
 
 const NewChatButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: ${props => props.collapsed ? 'center' : 'flex-start'};
-  background-color: #fff;
-  border: 1px solid #e6e6e6;
+  background-color: ${props => props.theme.background};
+  border: none;
   border-radius: 6px;
   padding: 8px 12px;
   cursor: pointer;
   width: ${props => props.collapsed ? '40px' : '100%'};
   transition: all 0.3s;
+  color: ${props => props.theme.text};
   
   &:hover {
-    background-color: #f0f0f0;
+    background-color: ${props => props.theme.background === '#ffffff' ? '#f0f0f0' : '#404040'};
   }
 `;
 
@@ -47,8 +49,8 @@ const ToggleButton = styled.button`
   position: absolute;
   bottom: 20px;
   left: ${props => props.collapsed ? '20px' : '220px'};
-  background-color: #fff;
-  border: 1px solid #e6e6e6;
+  background-color: ${props => props.theme.background === '#ffffff' ? '#f5f5f5' : props.theme.background};
+  border: none;
   border-radius: 50%;
   width: 32px;
   height: 32px;
@@ -60,7 +62,7 @@ const ToggleButton = styled.button`
   z-index: 10;
   
   &:hover {
-    background-color: #f0f0f0;
+    background-color: ${props => props.theme.background === '#ffffff' ? '#e6e6e6' : '#404040'};
   }
 `;
 
@@ -83,11 +85,11 @@ const ConversationItem = styled.div`
   justify-content: ${props => props.collapsed ? 'center' : 'flex-start'};
   
   &:hover {
-    background-color: #e6e6e6;
+    background-color: ${props => props.theme.background === '#ffffff' ? '#e6e6e6' : '#404040'};
   }
   
   &.active {
-    background-color: #e6e6e6;
+    background-color: ${props => props.theme.background === '#ffffff' ? '#e6e6e6' : '#404040'};
   }
 `;
 
@@ -96,6 +98,7 @@ const ConversationTitle = styled.span`
 `;
 
 const Sidebar = ({ onNewChat, onSelectChat, activeChat }) => {
+  const { isDarkMode, toggleTheme } = useContext(ThemeContext);
   const [collapsed, setCollapsed] = useState(false);
   const [conversations, setConversations] = useState([
     { id: 1, title: '关于AI的对话' },
@@ -134,7 +137,15 @@ const Sidebar = ({ onNewChat, onSelectChat, activeChat }) => {
       </ConversationList>
 
       <ToggleButton collapsed={collapsed} onClick={toggleCollapse}>
-        {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+        {collapsed ? <MenuUnfoldOutlined style={{ color: isDarkMode ? '' : '#000000' }} /> : <MenuFoldOutlined style={{ color: isDarkMode ? '' : '#000000' }} />}
+      </ToggleButton>
+
+      <ToggleButton
+        collapsed={collapsed}
+        onClick={toggleTheme}
+        style={{ bottom: '70px' }}
+      >
+        {isDarkMode ? <SunOutlined /> : <MoonOutlined style={{ color: '#000000' }} />}
       </ToggleButton>
     </SidebarContainer>
   );

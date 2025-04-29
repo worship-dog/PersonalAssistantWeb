@@ -7,12 +7,12 @@ const ChatContainer = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  background-color: #fff;
+  background-color: ${props => props.theme.background};
 `;
 
 const ChatHeader = styled.div`
   padding: 16px;
-  border-bottom: 1px solid #e6e6e6;
+  border-bottom: 1px solid ${props => props.theme.border};
   font-weight: bold;
   font-size: 16px;
 `;
@@ -56,24 +56,30 @@ const MessageItem = styled.div`
 const MessageContent = styled.div`
   padding: 12px 16px;
   border-radius: 8px;
-  background-color: ${props => props.isUser ? '#1677ff' : '#f7f7f8'};
-  color: ${props => props.isUser ? '#fff' : '#000'};
+  // 消息气泡使用主题色
+  background-color: ${props => props.isUser ?
+    props.theme.messageUserBg :
+    props.theme.messageBotBg};
+  color: ${props => props.theme.text};
 `;
 
 const InputContainer = styled.div`
   padding: 16px;
-  border-top: 1px solid #e6e6e6;
+  border-top: 1px solid ${props => props.theme.border};
   display: flex;
 `;
 
 const MessageInput = styled.input`
   flex: 1;
+  width: 500px;
+  height: 100px;
+  max-height: 100px;
   padding: 12px 16px;
   border: 1px solid #e6e6e6;
   border-radius: 8px;
   outline: none;
   font-size: 14px;
-  background-color: #f5f5f5;
+  background-color: ${props => props.theme.background === '#ffffff' ? '#f5f5f5' : '#2d2d2d'};
   
   &:focus {
     border-color: #1677ff;

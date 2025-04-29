@@ -1,17 +1,45 @@
-import { useState } from 'react'
-import styled from 'styled-components'
+import { useState, createContext } from 'react'
+import styled, { ThemeProvider } from 'styled-components'
 import Sidebar from './components/Sidebar'
 import ChatArea from './components/ChatArea'
 import './App.css'
+
+// 新增主题上下文和主题配置
+export const ThemeContext = createContext();
+const lightTheme = {
+  background: '#ffffff',
+  sidebarBg: '#f7f7f8',
+  text: '#000000',
+  border: '#e6e6e6',
+  buttonBg: '#1677ff',
+  messageUserBg: '#1677ff',
+  messageBotBg: '#f7f7f8'
+};
+
+const darkTheme = {
+  background: '#1a1a1a',
+  sidebarBg: '#2d2d2d',
+  text: '#ffffff',
+  border: '#404040',
+  buttonBg: '#0958d9',
+  messageUserBg: '#0958d9',
+  messageBotBg: '#404040'
+};
 
 const AppContainer = styled.div`
   display: flex;
   height: 100vh;
   width: 100%;
   overflow: hidden;
+  background-color: ${props => props.theme.background};
+  color: ${props => props.theme.text};
 `;
 
 function App() {
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const toggleTheme = () => setIsDarkMode(!isDarkMode);
+
+  const theme = isDarkMode ? darkTheme : lightTheme;
   const [activeChat, setActiveChat] = useState(null);
   const [messages, setMessages] = useState({
     1: [
@@ -37,17 +65,21 @@ function App() {
   };
 
   return (
-    <AppContainer>
-      <Sidebar
-        onNewChat={handleNewChat}
-        onSelectChat={handleSelectChat}
-        activeChat={activeChat}
-      />
-      <ChatArea
-        activeChat={activeChat}
-        messages={activeChat ? messages[activeChat] : []}
-      />
-    </AppContainer>
+    <ThemeProvider theme={theme}>
+      <ThemeContext.Provider value={{ toggleTheme, isDarkMode }}>
+        <AppContainer>
+          <Sidebar
+            onNewChat={handleNewChat}
+            onSelectChat={handleSelectChat}
+            activeChat={activeChat}
+          />
+          <ChatArea
+            activeChat={activeChat}
+            messages={activeChat ? messages[activeChat] : []}
+          />
+        </AppContainer>
+      </ThemeContext.Provider>
+    </ThemeProvider>
   )
 }
 
