@@ -1,13 +1,13 @@
 import React, { useState, useContext } from 'react';
 import styled from 'styled-components';
-import { MenuFoldOutlined, MenuUnfoldOutlined, PlusOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons';
+import { MenuFoldOutlined, MenuUnfoldOutlined, PlusOutlined, MoonOutlined, SunOutlined, SettingOutlined } from '@ant-design/icons';
 import { ThemeContext } from '../App';
 
 const SidebarContainer = styled.div`
   height: 100%;
   background-color: ${props => props.theme.sidebarBg};
   transition: width 0.3s;
-  width: ${props => props.collapsed ? '60px' : '260px'};
+  width: ${props => props.$collapsed ? '60px' : '260px'};
   display: flex;
   flex-direction: column;
   border-right: 1px solid ${props => props.theme.border};
@@ -23,13 +23,13 @@ const SidebarHeader = styled.div`
 const NewChatButton = styled.button`
   display: flex;
   align-items: center;
-  justify-content: ${props => props.collapsed ? 'center' : 'flex-start'};
+  justify-content: ${props => props.$collapsed ? 'center' : 'flex-start'};
   background-color: ${props => props.theme.background};
   border: none;
   border-radius: 6px;
   padding: 8px 12px;
   cursor: pointer;
-  width: ${props => props.collapsed ? '40px' : '100%'};
+  width: ${props => props.$collapsed ? '40px' : '100%'};
   transition: all 0.3s;
   color: ${props => props.theme.text};
   
@@ -42,13 +42,13 @@ const ButtonText = styled.span`
   margin-left: 8px;
   white-space: nowrap;
   overflow: hidden;
-  display: ${props => props.collapsed ? 'none' : 'inline'};
+  display: ${props => props.$collapsed ? 'none' : 'inline'};
 `;
 
 const ToggleButton = styled.button`
   position: absolute;
   bottom: 20px;
-  left: ${props => props.collapsed ? '20px' : '220px'};
+  left: ${props => props.$collapsed ? '20px' : '220px'};
   background-color: ${props => props.theme.background === '#ffffff' ? '#f5f5f5' : props.theme.background};
   border: none;
   border-radius: 50%;
@@ -69,11 +69,11 @@ const ToggleButton = styled.button`
 const ConversationList = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: ${props => props.collapsed ? '8px 0' : '8px'};
+  padding: ${props => props.$collapsed ? '8px 0' : '8px'};
 `;
 
 const ConversationItem = styled.div`
-  padding: ${props => props.collapsed ? '8px 0' : '8px 12px'};
+  padding: ${props => props.$collapsed ? '8px 0' : '8px 12px'};
   margin-bottom: 4px;
   border-radius: 6px;
   cursor: pointer;
@@ -82,7 +82,7 @@ const ConversationItem = styled.div`
   text-overflow: ellipsis;
   display: flex;
   align-items: center;
-  justify-content: ${props => props.collapsed ? 'center' : 'flex-start'};
+  justify-content: ${props => props.$collapsed ? 'center' : 'flex-start'};
   
   &:hover {
     background-color: ${props => props.theme.background === '#ffffff' ? '#e6e6e6' : '#404040'};
@@ -94,7 +94,7 @@ const ConversationItem = styled.div`
 `;
 
 const ConversationTitle = styled.span`
-  display: ${props => props.collapsed ? 'none' : 'inline'};
+  display: ${props => props.$collapsed ? 'none' : 'inline'};
 `;
 
 const Sidebar = ({ onNewChat, onSelectChat, activeChat }) => {
@@ -107,7 +107,9 @@ const Sidebar = ({ onNewChat, onSelectChat, activeChat }) => {
   ]);
 
   const toggleCollapse = () => {
-    setCollapsed(!collapsed);
+    setCollapsed(prev => {
+      return !prev;
+    });
   };
 
   const handleNewChat = () => {
@@ -115,38 +117,46 @@ const Sidebar = ({ onNewChat, onSelectChat, activeChat }) => {
   };
 
   return (
-    <SidebarContainer collapsed={collapsed}>
+    <SidebarContainer $collapsed={collapsed}>
       <SidebarHeader>
-        <NewChatButton collapsed={collapsed} onClick={handleNewChat}>
+        <NewChatButton $collapsed={collapsed} onClick={handleNewChat}>
           <PlusOutlined />
-          <ButtonText collapsed={collapsed}>新建对话</ButtonText>
+          <ButtonText $collapsed={collapsed}>新建对话</ButtonText>
         </NewChatButton>
       </SidebarHeader>
 
-      <ConversationList collapsed={collapsed}>
+      <ConversationList $collapsed={collapsed}>
         {conversations.map(conv => (
           <ConversationItem
             key={conv.id}
             className={activeChat === conv.id ? 'active' : ''}
-            collapsed={collapsed}
+            $collapsed={collapsed}
             onClick={() => onSelectChat(conv.id)}
           >
-            <ConversationTitle collapsed={collapsed}>{conv.title}</ConversationTitle>
+            <ConversationTitle $collapsed={collapsed}>{conv.title}</ConversationTitle>
           </ConversationItem>
         ))}
       </ConversationList>
 
-      <ToggleButton collapsed={collapsed} onClick={toggleCollapse}>
+      <ToggleButton $collapsed={collapsed} onClick={toggleCollapse} style={{ bottom: '120px' }}>
         {collapsed ? <MenuUnfoldOutlined style={{ color: isDarkMode ? '' : '#000000' }} /> : <MenuFoldOutlined style={{ color: isDarkMode ? '' : '#000000' }} />}
       </ToggleButton>
 
       <ToggleButton
-        collapsed={collapsed}
+        $collapsed={collapsed}
         onClick={toggleTheme}
         style={{ bottom: '70px' }}
       >
         {isDarkMode ? <SunOutlined /> : <MoonOutlined style={{ color: '#000000' }} />}
       </ToggleButton>
+
+      <ToggleButton
+        $collapsed={collapsed}
+        onClick={() => { }}
+      >
+        <SettingOutlined style={{ color: isDarkMode ? '' : '#000000' }} />
+      </ToggleButton>
+
     </SidebarContainer>
   );
 };

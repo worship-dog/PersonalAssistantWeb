@@ -36,7 +36,7 @@ const AppContainer = styled.div`
 `;
 
 function App() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
   const theme = isDarkMode ? darkTheme : lightTheme;
