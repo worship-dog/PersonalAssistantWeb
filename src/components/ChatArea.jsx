@@ -67,13 +67,16 @@ const InputContainer = styled.div`
   padding: 16px;
   border-top: 1px solid ${props => props.theme.border};
   display: flex;
+  justify-content: center;
+  align-items: center;
 `;
 
 const MessageInput = styled.input`
   flex: 1;
   width: 500px;
-  height: 100px;
-  max-height: 100px;
+  max-width: 800px;
+  height: 50px;
+  max-height: 60px;
   padding: 12px 16px;
   border: 1px solid #e6e6e6;
   border-radius: 8px;
