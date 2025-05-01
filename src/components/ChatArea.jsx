@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { SendOutlined } from '@ant-design/icons';
+import { streamChat } from '../api/chat';
 
 const ChatContainer = styled.div`
   height: 100%;
@@ -106,13 +107,57 @@ const SendButton = styled.button`
   }
 `;
 
-const ChatArea = ({ activeChat, messages = [] }) => {
+const ChatArea = ({ activeChat }) => {
   const [inputValue, setInputValue] = React.useState('');
+  const [messages, setMessages] = React.useState([]);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const eventSourceRef = React.useRef(null);
 
-  const handleSendMessage = () => {
-    if (inputValue.trim() === '') return;
-    // 这里可以添加发送消息的逻辑
+  React.useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+    };
+  }, []);
+
+  const handleSendMessage = async () => {
+    if (inputValue.trim() === '' || isLoading) return;
+
+    setIsLoading(true);
+    const userMessage = { content: inputValue, isUser: true };
+    setMessages(prev => [...prev, userMessage]);
     setInputValue('');
+
+    try {
+      const response = await streamChat({
+        conversation_id: activeChat.toString(),
+        chat_id: Date.now().toString(),
+        question: inputValue,
+        llm_id: '2e8ac9ec-c66b-43d0-b6bd-fd685170a5ce',
+        prompt_template_id: ''
+      });
+
+      let botMessage = { content: '', isUser: false };
+      setMessages(prev => [...prev, botMessage]);
+
+      eventSourceRef.current = response;
+      const eventSource = eventSourceRef.current;
+
+      eventSource.addEventListener('message', (e) => {
+        botMessage.content += e.data;
+        setMessages(prev => [...prev.slice(0, -1), { ...botMessage }]);
+      });
+
+      eventSource.addEventListener('done', () => {
+        eventSource.close();
+        setIsLoading(false);
+      });
+    } catch (error) {
+      console.error('发送消息失败:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyPress = (e) => {
