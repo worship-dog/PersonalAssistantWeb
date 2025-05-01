@@ -54,6 +54,37 @@ const MessageItem = styled.div`
   align-self: ${props => props.$isUser.toString() == "true" ? 'flex-end' : 'flex-start'};
 `;
 
+const ThoughtItem = styled.div`
+  margin-bottom: 8px;
+  border: 1px solid ${props => props.theme.border};
+  border-radius: 6px;
+  overflow: hidden;
+`;
+
+const ThoughtHeader = styled.div`
+  padding: 8px 12px;
+  background-color: ${props => props.theme.background};
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  &:hover {
+    background-color: ${props => props.theme.background === '#ffffff' ? '#f5f5f5' : '#333'};
+  }
+`;
+
+const ThoughtContent = styled.div`
+  padding: 8px 12px;
+  font-size: 12px;
+  background-color: ${props => props.theme.background === '#ffffff' ? '#fafafa' : '#252525'};
+  border-top: 1px solid ${props => props.theme.border};
+`;
+
+const TimeStamp = styled.span`
+  font-size: 10px;
+  color: #666;
+`;
+
 const MessageContent = styled.div`
   padding: 12px 16px;
   border-radius: 8px;
@@ -138,18 +169,66 @@ const ChatArea = ({ activeChat }) => {
         prompt_template_id: ''
       });
 
-      let botMessage = { content: '', isUser: false };
+      let botMessage = {
+        content: '',
+        isUser: false,
+        thinks: [],
+        answer: '',
+        thinkVisibility: [],
+        buffer: ''
+      };
       setMessages(prev => [...prev, botMessage]);
 
       eventSourceRef.current = response;
       const eventSource = eventSourceRef.current;
 
       eventSource.addEventListener('message', (e) => {
-        botMessage.content += e.data;
+        const newData = e.data;
+        botMessage.buffer += newData;
+
+        // 处理思考内容收集
+        if (!botMessage.isCollectingThink) {
+          const thinkStartIndex = botMessage.buffer.indexOf('<think>');
+          if (thinkStartIndex > -1) {
+            botMessage.isCollectingThink = true;
+            botMessage.currentThink = {
+              content: '',
+              startTime: performance.now(),
+              duration: 0
+            };
+            botMessage.buffer = botMessage.buffer.slice(thinkStartIndex + 7);
+          }
+        }
+
+        // 当处于收集思考内容状态时
+        if (botMessage.isCollectingThink) {
+          const thinkEndIndex = botMessage.buffer.indexOf('</think>');
+          if (thinkEndIndex > -1) {
+            botMessage.currentThink.content += botMessage.buffer.slice(0, thinkEndIndex);
+            botMessage.currentThink.duration = ((performance.now() - botMessage.currentThink.startTime) / 1000).toFixed(1) + '秒';
+            botMessage.thinks.push({ ...botMessage.currentThink });
+            botMessage.thinkVisibility.push(false);
+            botMessage.isCollectingThink = false;
+            botMessage.buffer = botMessage.buffer.slice(thinkEndIndex + 8);
+          } else {
+            botMessage.currentThink.content += botMessage.buffer;
+            botMessage.buffer = '';
+          }
+        } else {
+          // 直接追加到回答内容
+          botMessage.answer += botMessage.buffer;
+          botMessage.buffer = '';
+        }
+
         setMessages(prev => [...prev.slice(0, -1), { ...botMessage }]);
       });
 
       eventSource.addEventListener('done', () => {
+        if (botMessage.buffer.length > 0) {
+          botMessage.answer += botMessage.buffer;
+          botMessage.buffer = '';
+          setMessages(prev => [...prev.slice(0, -1), { ...botMessage }]);
+        }
         eventSource.close();
         setIsLoading(false);
       });
@@ -198,7 +277,32 @@ const ChatArea = ({ activeChat }) => {
         {messages.map((msg, index) => (
           <MessageItem key={index} $isUser={msg.isUser.toString()}>
             <MessageContent $isUser={msg.isUser.toString()}>
-              {msg.content}
+              {msg.isUser ? (
+                msg.content
+              ) : (
+                <>
+                  {msg.thinks.map((think, i) => (
+                    <ThoughtItem key={i}>
+                      <ThoughtHeader onClick={() => {
+                        const newVisibility = [...msg.thinkVisibility];
+                        newVisibility[i] = !newVisibility[i];
+                        setMessages(prev => prev.map((m, idx) =>
+                          idx === index ? { ...m, thinkVisibility: newVisibility } : m
+                        ));
+                      }}>
+                        <span>思考过程</span>
+                        <TimeStamp>{think.duration}</TimeStamp>
+                      </ThoughtHeader>
+                      {msg.thinkVisibility[i] && (
+                        <ThoughtContent>
+                          {think.content}
+                        </ThoughtContent>
+                      )}
+                    </ThoughtItem>
+                  ))}
+                  {msg.answer && <div>{msg.answer}</div>}
+                </>
+              )}
             </MessageContent>
           </MessageItem>
         ))}
