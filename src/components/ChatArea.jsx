@@ -1,7 +1,8 @@
 import React from 'react';
 import styled from 'styled-components';
-import { SendOutlined } from '@ant-design/icons';
-import { streamChat } from '../api/chat';
+import { SendOutlined, VerticalAlignTopOutlined } from '@ant-design/icons';
+
+import * as commonmark from 'commonmark';
 
 const ChatContainer = styled.div`
   height: 100%;
@@ -24,6 +25,7 @@ const MessagesContainer = styled.div`
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  position: relative;
 `;
 
 const EmptyState = styled.div`
@@ -93,6 +95,51 @@ const MessageContent = styled.div`
     props.theme.messageUserBg :
     props.theme.messageBotBg};
   color: ${props => props.theme.text};
+  
+  /* Markdown样式 */
+  & a {
+    color: #1677ff;
+    text-decoration: none;
+  }
+  & a:hover {
+    text-decoration: underline;
+  }
+  & code {
+    background-color: ${props => props.theme.background === '#ffffff' ? '#f5f5f5' : '#333'};
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: monospace;
+  }
+  & pre {
+    background-color: ${props => props.theme.background === '#ffffff' ? '#f5f5f5' : '#333'};
+    padding: 12px;
+    border-radius: 4px;
+    overflow-x: auto;
+  }
+  & pre code {
+    background-color: transparent;
+    padding: 0;
+  }
+  & blockquote {
+    border-left: 4px solid #ddd;
+    padding-left: 16px;
+    margin-left: 0;
+    color: #666;
+  }
+  & img {
+    max-width: 100%;
+  }
+  & table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  & th, & td {
+    border: 1px solid ${props => props.theme.border};
+    padding: 8px;
+  }
+  & th {
+    background-color: ${props => props.theme.background === '#ffffff' ? '#f5f5f5' : '#333'};
+  }
 `;
 
 const InputContainer = styled.div`
@@ -138,16 +185,101 @@ const SendButton = styled.button`
   }
 `;
 
+const ScrollToBottomButton = styled.button`
+  position: fixed;
+  bottom: 100px;
+  right: 60px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #1677ff;
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  opacity: ${props => props.$visible ? 1 : 0};
+  visibility: ${props => props.$visible ? 'visible' : 'hidden'};
+  transition: opacity 0.3s, visibility 0.3s;
+  z-index: 100;
+  
+  &:hover {
+    background-color: #0958d9;
+  }
+`;
+
+
 const ChatArea = ({ activeChat }) => {
   const [inputValue, setInputValue] = React.useState('');
   const [messages, setMessages] = React.useState([]);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [showScrollButton, setShowScrollButton] = React.useState(false);
   const eventSourceRef = React.useRef(null);
+  const messagesEndRef = React.useRef(null);
+  const messagesContainerRef = React.useRef(null);
+  const wsRef = React.useRef(null);
+
+  React.useEffect(() => {
+    // 组件挂载时创建WebSocket连接
+    const ws = new WebSocket(`${import.meta.env.VITE_API_BASE_URL.replace('http', 'ws')}/chat/stream`);
+    wsRef.current = ws;
+
+    return () => {
+      // 组件卸载时关闭WebSocket连接
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
+      }
+    };
+  }, []);
+
+  // 滚动到底部的函数
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // 当消息列表更新时，检查滚动状态
+  React.useEffect(() => {
+    // 检查是否需要显示滚动按钮
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      const isScrolledUp = scrollHeight - scrollTop - clientHeight > 10;
+      setShowScrollButton(isScrolledUp);
+    }
+  }, [messages]);
+
+  // 监听滚动事件，控制滚动按钮的显示和隐藏
+  React.useEffect(() => {
+    const handleScroll = () => {
+      if (!messagesContainerRef.current) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      // 当滚动条距离底部超过10px时显示按钮
+      const isScrolledUp = scrollHeight - scrollTop - clientHeight > 10;
+      setShowScrollButton(isScrolledUp);
+    };
+
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      // 组件挂载后立即检查一次滚动状态
+      handleScroll();
+    }
+
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', handleScroll);
       }
     };
   }, []);
@@ -159,15 +291,32 @@ const ChatArea = ({ activeChat }) => {
     const userMessage = { content: inputValue, isUser: true };
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
+    // 发送用户消息后滚动到底部
+    scrollToBottom();
 
     try {
-      const response = await streamChat({
-        conversation_id: activeChat.toString(),
-        chat_id: Date.now().toString(),
-        question: inputValue,
-        llm_id: '2e8ac9ec-c66b-43d0-b6bd-fd685170a5ce',
-        prompt_template_id: ''
-      });
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        // 如果连接不存在或未打开，重新创建连接
+        wsRef.current = new WebSocket(`${import.meta.env.VITE_API_BASE_URL.replace('http', 'ws')}/chat/stream`);
+        wsRef.current.onopen = () => {
+          wsRef.current.send(JSON.stringify({
+            conversation_id: activeChat.toString(),
+            chat_id: Date.now().toString(),
+            question: inputValue,
+            llm_id: '2e8ac9ec-c66b-43d0-b6bd-fd685170a5ce',
+            prompt_template_id: ''
+          }));
+        };
+      } else {
+        // 直接发送消息
+        wsRef.current.send(JSON.stringify({
+          conversation_id: activeChat.toString(),
+          chat_id: Date.now().toString(),
+          question: inputValue,
+          llm_id: '2e8ac9ec-c66b-43d0-b6bd-fd685170a5ce',
+          prompt_template_id: ''
+        }));
+      }
 
       let botMessage = {
         content: '',
@@ -178,12 +327,15 @@ const ChatArea = ({ activeChat }) => {
         buffer: ''
       };
       setMessages(prev => [...prev, botMessage]);
+      // 添加机器人消息后滚动到底部
+      scrollToBottom();
 
-      eventSourceRef.current = response;
-      const eventSource = eventSourceRef.current;
+      const websocket = wsRef.current;
 
-      eventSource.addEventListener('message', (e) => {
-        const newData = e.data;
+      websocket.onmessage = (e) => {
+        let newData = e.data;
+        // 替换e.data中的双引号
+        newData = newData.replace(/"/g, '');
         botMessage.buffer += newData;
 
         // 处理思考内容收集
@@ -215,23 +367,31 @@ const ChatArea = ({ activeChat }) => {
             botMessage.buffer = '';
           }
         } else {
-          // 直接追加到回答内容
+          // 确保保留原始格式，包括换行符
           botMessage.answer += botMessage.buffer;
+          // 实时将Markdown转换为HTML
+          try {
+            var reader = new commonmark.Parser();
+            const writer = new commonmark.HtmlRenderer();
+            var parsed = reader.parse(botMessage.answer);
+            var html = writer.render(parsed);
+            botMessage.htmlAnswer = html;
+          } catch (error) {
+            console.error('Markdown解析失败:', error);
+          }
           botMessage.buffer = '';
         }
-
         setMessages(prev => [...prev.slice(0, -1), { ...botMessage }]);
-      });
+      };
 
-      eventSource.addEventListener('done', () => {
+      websocket.onclose = () => {
         if (botMessage.buffer.length > 0) {
           botMessage.answer += botMessage.buffer;
           botMessage.buffer = '';
           setMessages(prev => [...prev.slice(0, -1), { ...botMessage }]);
         }
-        eventSource.close();
         setIsLoading(false);
-      });
+      };
     } catch (error) {
       console.error('发送消息失败:', error);
     } finally {
@@ -273,7 +433,7 @@ const ChatArea = ({ activeChat }) => {
             activeChat === 3 ? '旅行计划讨论' : '新对话'}
       </ChatHeader>
 
-      <MessagesContainer>
+      <MessagesContainer ref={messagesContainerRef}>
         {messages.map((msg, index) => (
           <MessageItem key={index} $isUser={msg.isUser.toString()}>
             <MessageContent $isUser={msg.isUser.toString()}>
@@ -300,12 +460,20 @@ const ChatArea = ({ activeChat }) => {
                       )}
                     </ThoughtItem>
                   ))}
-                  {msg.answer && <div>{msg.answer}</div>}
+                  {<div dangerouslySetInnerHTML={{ __html: msg.htmlAnswer }} />}
                 </>
               )}
             </MessageContent>
           </MessageItem>
         ))}
+        <div ref={messagesEndRef} />
+        <ScrollToBottomButton
+          $visible={showScrollButton}
+          onClick={scrollToBottom}
+          title="滚动到底部"
+        >
+          <VerticalAlignTopOutlined style={{ fontSize: '16px', transform: 'rotate(180deg)' }} />
+        </ScrollToBottomButton>
       </MessagesContainer>
 
       <InputContainer>
