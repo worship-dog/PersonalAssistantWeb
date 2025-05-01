@@ -140,6 +140,18 @@ const MessageContent = styled.div`
   & th {
     background-color: ${props => props.theme.background === '#ffffff' ? '#f5f5f5' : '#333'};
   }
+  
+  /* 列表样式 */
+  & ul, & ol {
+    padding-left: 20px;
+    margin: 8px 0;
+    overflow-wrap: break-word;
+  }
+  
+  & li {
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
 `;
 
 const InputContainer = styled.div`
@@ -216,31 +228,52 @@ const ChatArea = ({ activeChat }) => {
   const [messages, setMessages] = React.useState([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [showScrollButton, setShowScrollButton] = React.useState(false);
-  const eventSourceRef = React.useRef(null);
   const messagesEndRef = React.useRef(null);
   const messagesContainerRef = React.useRef(null);
   const wsRef = React.useRef(null);
 
-  React.useEffect(() => {
-    // 组件挂载时创建WebSocket连接
-    const ws = new WebSocket(`${import.meta.env.VITE_API_BASE_URL.replace('http', 'ws')}/chat/stream`);
-    wsRef.current = ws;
+  const connectWebSocket = React.useCallback(() => {
+    if (
+      wsRef.current &&
+      (wsRef.current.readyState === WebSocket.CONNECTING ||
+        wsRef.current.readyState === WebSocket.OPEN)) {
+      return;
+    }
+    // 关闭已存在的无效连接
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+    try {
+      const ws = new WebSocket(`${import.meta.env.VITE_API_BASE_URL.replace('http', 'ws')}/chat/stream`);
 
+      ws.onopen = () => {
+        console.log('WebSocket连接已建立');
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket连接已关闭');
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket错误:', error);
+      };
+
+      wsRef.current = ws;
+    } catch (error) {
+      console.error('WebSocket连接失败:', error);
+    }
+  }, []);
+
+  // 组件挂载时连接WebSocket
+  React.useEffect(() => {
+    connectWebSocket();
     return () => {
       // 组件卸载时关闭WebSocket连接
-      if (wsRef.current) {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.close();
       }
     };
-  }, []);
-
-  React.useEffect(() => {
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-    };
-  }, []);
+  }, [connectWebSocket]);
 
   // 滚动到底部的函数
   const scrollToBottom = () => {
@@ -295,28 +328,13 @@ const ChatArea = ({ activeChat }) => {
     scrollToBottom();
 
     try {
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        // 如果连接不存在或未打开，重新创建连接
-        wsRef.current = new WebSocket(`${import.meta.env.VITE_API_BASE_URL.replace('http', 'ws')}/chat/stream`);
-        wsRef.current.onopen = () => {
-          wsRef.current.send(JSON.stringify({
-            conversation_id: activeChat.toString(),
-            chat_id: Date.now().toString(),
-            question: inputValue,
-            llm_id: '2e8ac9ec-c66b-43d0-b6bd-fd685170a5ce',
-            prompt_template_id: ''
-          }));
-        };
-      } else {
-        // 直接发送消息
-        wsRef.current.send(JSON.stringify({
-          conversation_id: activeChat.toString(),
-          chat_id: Date.now().toString(),
-          question: inputValue,
-          llm_id: '2e8ac9ec-c66b-43d0-b6bd-fd685170a5ce',
-          prompt_template_id: ''
-        }));
-      }
+      wsRef.current.send(JSON.stringify({
+        conversation_id: activeChat.toString(),
+        chat_id: Date.now().toString(),
+        question: inputValue,
+        llm_id: '2e8ac9ec-c66b-43d0-b6bd-fd685170a5ce',
+        prompt_template_id: ''
+      }));
 
       let botMessage = {
         content: '',
@@ -331,7 +349,6 @@ const ChatArea = ({ activeChat }) => {
       scrollToBottom();
 
       const websocket = wsRef.current;
-
       websocket.onmessage = (e) => {
         let newData = e.data;
         // 替换e.data中的双引号
