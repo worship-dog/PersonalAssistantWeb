@@ -8,7 +8,7 @@ import request from './request';
  */
 export function getChatList(conversation_id) {
   return request({
-    url: '/chat/stream',
+    url: '/chat/list',
     method: 'get',
     params: { conversation_id }
   });
