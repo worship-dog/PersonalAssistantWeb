@@ -28,6 +28,14 @@ function App() {
   const theme = isDarkMode ? darkTheme : lightTheme;
   let botMessage = createBotMessage();
 
+  // 使用ref存储当前活动对话ID，避免在WebSocket回调中使用过时的状态值
+  const activeChatRef = React.useRef(null);
+
+  // 当activeChat变化时更新ref
+  useEffect(() => {
+    activeChatRef.current = activeChat;
+  }, [activeChat]);
+
   const connectWebSocket = React.useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.CONNECTING || wsRef.current?.readyState === WebSocket.OPEN) return;
     if (wsRef.current) wsRef.current.close();
@@ -35,17 +43,47 @@ function App() {
     try {
       const ws = new WebSocket(`${import.meta.env.VITE_API_BASE_URL.replace('http', 'ws')}/chat/stream`);
       ws.onopen = () => console.log('WebSocket连接已建立');
+      const messageStore = {}; // 用于存储所有对话的消息
+
+      // 在onmessage方法中
       ws.onmessage = (e) => {
         if (e.data === '@@@end@@@') {
           botMessage = createBotMessage();
           return;
         }
-        const processedMessage = handleMessageProcessing(e.data, botMessage);
-        if (newUserMessage && newUserMessage.content) {
-          setLocalMessages(prev => [...prev, newUserMessage, createBotMessage()]);
-          newUserMessage = {};
+        // 解析消息中的conversation_id、answer
+        let messageConversationId;
+        let answer;
+
+        const jsonData = JSON.parse(e.data);
+        messageConversationId = jsonData.conversation_id;
+        answer = jsonData.chunk;
+
+        // 存储消息到messageStore
+        if (!messageStore[messageConversationId]) {
+          messageStore[messageConversationId] = {};
         }
-        setLocalMessages(prev => [...prev.slice(0, -1), processedMessage]);
+        const processedMessage = handleMessageProcessing(answer, botMessage);
+        messageStore[messageConversationId] = processedMessage;
+
+        // 从ref获取最新的activeChat值
+        const currentActiveChat = activeChatRef.current;
+        // 只有当消息的conversation_id与当前活动对话匹配时才更新消息
+        if (messageConversationId.toString() === currentActiveChat?.toString()) {
+          if (newUserMessage && newUserMessage.content) {
+            setLocalMessages(prev => [...prev, newUserMessage, createBotMessage()]);
+            newUserMessage = {};
+            scrollToBottom();
+          }
+          setLocalMessages(prev => {
+            if (prev.length === 0) return [...prev, messageStore[messageConversationId]];
+            const lastMessage = prev[prev.length - 1];
+            if (!lastMessage.isUser) {
+              return [...prev.slice(0, -1), messageStore[messageConversationId]];
+            }
+            return [...prev, messageStore[messageConversationId]];
+          });
+        }
       };
       ws.onclose = () => console.log('WebSocket连接已关闭');
       ws.onerror = (error) => console.error('WebSocket错误:', error);
@@ -53,7 +91,7 @@ function App() {
     } catch (error) {
       console.error('WebSocket连接失败:', error);
     }
-  }, []);
+  }, []); // 移除activeChat依赖，避免每次切换对话都重新连接WebSocket
 
   useEffect(() => {
     connectWebSocket();
@@ -118,10 +156,17 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleNewConversation = () => setActiveChat(null);
+  const handleNewConversation = () => {
+    // 创建新对话时重置botMessage
+    botMessage = createBotMessage();
+    setActiveChat(null);
+  };
 
   const handleSelectConversation = async (conversation_id) => {
     try {
+      // 切换对话前，重置botMessage以避免消息混淆
+      botMessage = createBotMessage();
+
       const response = await getChatList(conversation_id);
       if (response.code === 200) {
         setMessages({ [conversation_id]: formatMessages(response.data) });
@@ -134,6 +179,9 @@ function App() {
 
   const handleCreateNewChat = async () => {
     try {
+      // 创建新对话前重置botMessage
+      botMessage = createBotMessage();
+
       const response = await createConversation({ name: '新对话' });
       if (response.code === 200) {
         const newConversationId = response.data.conversation_id;
@@ -161,12 +209,13 @@ function App() {
   }
 
   const handleSendMessage = (conversationId) => {
+    scrollToBottom();
     try {
       wsRef.current.send(JSON.stringify({
         conversation_id: conversationId || activeChat.toString(),
         chat_id: "",
         question: inputValue,
-        llm_id: '2e8ac9ec-c66b-43d0-b6bd-fd685170a5ce',
+        llm_id: 'a31e8830-abac-4004-a980-1f1ab53a7b29',
         prompt_template_id: ''
       }));
     } catch (error) {

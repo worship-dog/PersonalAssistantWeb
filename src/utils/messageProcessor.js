@@ -60,7 +60,7 @@ export const createBotMessage = () => ({
 });
 
 export const formatMessages = (data) => {
-  return data.map(item => ([
+  return data.map(item => item.ai.length === 0 ? [{ content: item.human, isUser: true }] : [
     { content: item.human, isUser: true },
     {
       thinkContent: '<think>' + item.ai[0].answer.match(/<think>([\s\S]*?)<\/think>/g)?.map(t => t.replace(/<think>([\s\S]*?)<\/think>/, '$1')).join('\n') + '</think>' || '',
@@ -68,5 +68,5 @@ export const formatMessages = (data) => {
       isUser: false,
       thinkTime: item.ai[0].think_time,
     }
-  ])).flat();
+  ]).flat();
 };
