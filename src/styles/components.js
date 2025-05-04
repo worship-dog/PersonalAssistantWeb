@@ -67,6 +67,7 @@ export const ConversationList = styled.div`
   flex: 1;
   overflow-y: auto;
   padding: ${props => props.$collapsed ? '8px 0' : '8px'};
+  max-height: calc(100vh - 250px); /* 限制最大高度，确保不会超出视口 */
 `;
 
 export const ConversationItem = styled.div`
@@ -75,11 +76,10 @@ export const ConversationItem = styled.div`
   border-radius: 6px;
   cursor: pointer;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   display: flex;
   align-items: center;
-  justify-content: ${props => props.$collapsed ? 'center' : 'flex-start'};
+  justify-content: ${props => props.$collapsed ? 'center' : 'space-between'};
+  position: relative;
   
   &:hover {
     background-color: ${props => props.theme.background === '#ffffff' ? '#e6e6e6' : '#404040'};
@@ -92,16 +92,20 @@ export const ConversationItem = styled.div`
 
 export const ConversationTitle = styled.span`
   display: ${props => props.$collapsed ? 'none' : 'inline'};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
 `;
 
 export const AppContainer = styled.div`
-  display: flex;
-  height: 100vh;
-  width: 100%;
-  overflow: hidden;
-  background-color: ${props => props.theme.background};
-  color: ${props => props.theme.text};
+display: flex;
+height: 100vh;
+width: 100 %;
+overflow: hidden;
+background-color: ${props => props.theme.background};
+color: ${props => props.theme.text};
 `;
+
 
 export const ChatContainer = styled.div`
   height: 100%;
@@ -310,5 +314,60 @@ export const ScrollToBottomButton = styled.button`
   
   &:hover {
     background-color: #0958d9;
+  }
+`;
+
+export const MoreButton = styled.button`
+  background: transparent;
+  border: none;
+  color: ${props => props.theme.text};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: ${props => props.$visible ? 1 : 0};
+  transition: opacity 0.2s;
+  
+  &:hover {
+  background-color: ${props => props.theme.background === '#ffffff' ? '#d9d9d9' : '#505050'};
+}
+`;
+
+export const DropdownMenu = styled.div`
+  position: absolute;
+  right: 8px;
+  top: 30px;
+  background-color: ${props => props.theme.background};
+  border: 1px solid ${props => props.theme.border};
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  display: ${props => props.$visible ? 'block' : 'none'};
+  max-height: 200px;
+  overflow-y: auto;
+  /* 确保下拉菜单不会被截断 */
+  transform-origin: top right;
+  transform: translateY(0);
+  /* 自动调整位置，防止超出视口 */
+  @media (max-height: 500px) {
+    max-height: 150px;
+  }
+`;
+
+export const DropdownItem = styled.div`
+  padding: 8px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+    
+  &:hover {
+    background-color: ${props => props.theme.background === '#ffffff' ? '#f0f0f0' : '#404040'};
+  }
+    
+  & span {
+    margin-left: 8px;
   }
 `;

@@ -41,7 +41,7 @@ function App() {
           return;
         }
         const processedMessage = handleMessageProcessing(e.data, botMessage);
-        if (newUserMessage.content) {
+        if (newUserMessage && newUserMessage.content) {
           setLocalMessages(prev => [...prev, newUserMessage, createBotMessage()]);
           newUserMessage = {};
         }
@@ -72,6 +72,16 @@ function App() {
       }
     };
     fetchConversations();
+
+    // 添加全局函数用于更新对话列表
+    window.updateConversationList = (newConversations) => {
+      setConversations(newConversations);
+    };
+
+    return () => {
+      // 组件卸载时清除全局函数
+      window.updateConversationList = undefined;
+    };
   }, []);
 
   useEffect(() => {
@@ -130,6 +140,7 @@ function App() {
         const conversationListResponse = await getConversationList();
         if (conversationListResponse.code === 200) {
           const currentInput = inputValue;
+          setInputValue('');
           setConversations(conversationListResponse.data.map(item => ({ id: item.id, title: item.name })));
           setActiveChat(newConversationId);
           newUserMessage = { content: currentInput, isUser: true };
